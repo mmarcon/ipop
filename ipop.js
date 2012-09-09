@@ -14,6 +14,12 @@ var server = 'mail.marcon.me',
     port = 110;
 
 var net = require('net');
+var readline = require('readline');
+
+var rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
 
 var POP = {
     STAT: 'STAT',
@@ -28,6 +34,12 @@ function sendCommand(socket, command) {
     socket.write(command + '\r\n');
 }
 
+function getInput(callback) {
+    rl.question("What do you think of node.js? ", function(answer) {
+        rl.close();
+    });
+}
+
 var socket = net.connect({port: port, host: server}, function (argument) {
     console.log('CONNECTED to <' + server + '>');
     sendCommand(socket, POP.USER + ' ' + username);
@@ -36,10 +48,21 @@ var socket = net.connect({port: port, host: server}, function (argument) {
 
 socket.on('data', function(data) {
     data = data.toString();
+    var match, unread, i;
     if (data.match(/\+OK\s+logged\s+in.*/gi)) {
+        console.log('LOGGED IN');
         sendCommand(socket, POP.LIST);
     }
-    console.log(data.toString());
+    else if (match = data.match(/\+OK\s(\d+)\smessages/)) {
+        console.log(match[1] + ' unread messages.')
+        unread = parseInt(match[1], 10);
+        for (i = 1; i <= unread; i++) {
+            sendCommand(socket, POP.RETR + ' ' + i);
+        }
+    }
+    else {
+        console.log(data.toString());
+    }
 });
 socket.on('end', function() {
     console.log('client disconnected');
